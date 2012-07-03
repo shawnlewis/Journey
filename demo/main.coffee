@@ -27,12 +27,15 @@ $ ->
         title: "End"
         draggable: true
 
-    showStartEndRoute = ->
-        showRoute start.position, end.position
+    doRoute = -> getRoute(start.position, end.position, (routes) ->
+        directionsRenderer.setDirections(routes)
+    )
 
-    google.maps.event.addListener start, 'dragend', showStartEndRoute
-    google.maps.event.addListener end, 'dragend', showStartEndRoute
-    showStartEndRoute()
+
+
+    google.maps.event.addListener start, 'dragend', doRoute
+    google.maps.event.addListener end, 'dragend', doRoute
+    doRoute()
 
 
 logLatLng = (address) ->
@@ -43,13 +46,13 @@ logLatLng = (address) ->
             alert 'Geocode failed: ' + status
 
 
-showRoute = (start, end) ->
+getRoute = (start, end, onSuccess) ->
     request =
         origin:start,
         destination:end,
         travelMode: google.maps.TravelMode.DRIVING
     directionsService.route request, (result, status) ->
         if (status == google.maps.DirectionsStatus.OK)
-            directionsRenderer.setDirections(result)
+            onSuccess(result)
         else
             alert 'Route failed: ' + status
