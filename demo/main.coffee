@@ -40,7 +40,7 @@ logLatLng = (address) ->
         if status == google.maps.GeocoderStatus.OK
             console.log(results[0].geometry.location)
         else
-            alert 'Geocode was not successful: ' + status
+            alert 'Geocode failed: ' + status
 
 
 showRoute = (start, end) ->
@@ -51,3 +51,5 @@ showRoute = (start, end) ->
     directionsService.route request, (result, status) ->
         if (status == google.maps.DirectionsStatus.OK)
             directionsRenderer.setDirections(result)
+        else
+            alert 'Route failed: ' + status
