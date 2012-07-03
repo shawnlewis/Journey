@@ -27,11 +27,26 @@ $ ->
         title: "End"
         draggable: true
 
-    doRoute = -> getRoute(start.position, end.position, (routes) ->
-        directionsRenderer.setDirections(routes)
+    markers = []
+    doRoute = -> getRoute(start.position, end.position, (result) ->
+        directionsRenderer.setDirections(result)
+
+        for marker in markers
+            marker.setMap(null)
+        markers = []
+
+        # We only get one route back because we didn't request
+        # alternatives. We only get one leg because we didn't
+        # specify waypoints.
+        leg = result.routes[0].legs[0]
+
+        for step in leg.steps
+            for point in step.path
+                markers.push(new google.maps.Marker
+                    position: point
+                    map: map
+                )
     )
-
-
 
     google.maps.event.addListener start, 'dragend', doRoute
     google.maps.event.addListener end, 'dragend', doRoute
