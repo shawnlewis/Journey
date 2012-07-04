@@ -1,4 +1,13 @@
 #map-canvas {
     width: 500px;
     height: 500px;
+    float: left;
+}
+
+#provider-selector {
+    float: left;
+}
+
+#images {
+    clear: both;
 }

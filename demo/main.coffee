@@ -1,3 +1,8 @@
+EARTH_CIRCUMFERENCE = 400751600   # meters
+
+metersInEarthDegrees = (meters) ->
+    360.0 * meters / EARTH_CIRCUMFERENCE
+
 directionsRenderer = new google.maps.DirectionsRenderer()
 directionsService = new google.maps.DirectionsService()
 geocoder = new google.maps.Geocoder()
@@ -52,6 +57,7 @@ $ ->
 
     google.maps.event.addListener start, 'dragend', doRoute
     google.maps.event.addListener end, 'dragend', doRoute
+    $('input[name=provider]').change doRoute
     doRoute()
 
     IG.init
@@ -67,9 +73,61 @@ $ ->
         scope: ['basic']
     )
 
+# Returns a comma separated string of 4 values as expected by the flickr
+# search API.
+# "The 4 values represent the bottom-left corner of the box and the
+#  top-right corner, minimum_longitude, minimum_latitude,
+#  maximum_longitude, maximum_latitude."
+boundingBox = (centerLatLng, distance) ->
+    dist = metersInEarthDegrees(distance)
+    return (centerLatLng.ab - dist) +
+        ',' + (centerLatLng.$a - dist) +
+        ',' + (centerLatLng.ab + dist) +
+        ',' + (centerLatLng.$a + dist)
 
-window.handleIGSearch = (response) ->
-    console.log(response)
+# Returns the name of a function that can be called once, after which it
+# will be deleted. The name is always unique.
+#
+# This is useful for jsonp request which can only call a callback that's
+# in the global scope (attached to window) by name. Each request can have
+# its own unique callback passed in as a function rather than by name.
+oneOffID = 0
+oneOffFunction = (callback) ->
+    name = 'oneOffFunction' + oneOffID
+    oneOffID += 1
+    window[name] = (args...) ->
+        callback(args...)
+        delete window[name]
+    return name
+
+flickrSearch = (options) ->
+    callback = options.onResponse
+    delete options['onResponse']
+
+    options.api_key = '785f5248cb4ab12cf982c1600887864d'
+    options.format = 'json'
+    options.jsoncallback = oneOffFunction(callback)
+
+    # Tells flickr to return a small thumbnail url. We could construct
+    # URLs for each size from the response instead.
+    options.extras = 'url_s'
+
+    $.ajax
+        url: 'http://api.flickr.com/services/rest/?method=flickr.photos.search'
+        data: options
+        dataType: 'jsonp'
+
+instagramSearch = (options) ->
+    callback = options.onResponse
+    delete options['onResponse']
+
+    options.access_token = window.IG_access_token
+    options.callback = oneOffFunction(callback)
+
+    $.ajax
+        url: 'https://api.instagram.com/v1/media/search'
+        data: options
+        dataType: 'script'
 
 
 showImagesForPoints = (points) ->
@@ -87,27 +145,24 @@ showImagesForPoints = (points) ->
 
             pointImagesEl.append($('<div>').text(point.$a + ' ' + point.ab))
 
-            # warning: if the user changes points before all callbacks
-            # are called, outstanding api calls will call the wrong
-            # callbacks
-            callbackName = 'handleIGSearch' + i
-
-            console.log(callbackName)
-            window[callbackName] = (response) ->
-                for d in response.data
-                    imURL = d.images.standard_resolution.url
-                    imURL = d.images.low_resolution.url
-                    imURL = d.images.thumbnail.url
-                    pointImagesEl.append($('<img>').attr('src', imURL))
-            $.ajax
-                url: 'https://api.instagram.com/v1/media/search'
-                data:
-                    access_token: window.IG_access_token
-                    callback: callbackName
+            if $('input[name=provider]:checked').val() == 'Instagram'
+                instagramSearch
                     lat: point.$a
                     lng: point.ab
                     distance: 10
-                dataType: 'script'
+                    onResponse: (response) ->
+                        for d in response.data
+                            imURL = d.images.thumbnail.url
+                            pointImagesEl.append($('<img>').attr('src', imURL))
+            else
+                flickrSearch
+                    bbox: boundingBox(point, 20)
+                    min_taken_date: '2010-01-01'
+                    onResponse: (response) ->
+                        for photo in response.photos.photo
+                            pointImagesEl.append($('<img>').attr('src', photo.url_s))
+
+
         closure()
 
 
