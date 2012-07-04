@@ -40,17 +40,75 @@ $ ->
         # specify waypoints.
         leg = result.routes[0].legs[0]
 
-        for step in leg.steps
-            for point in step.path
-                markers.push(new google.maps.Marker
-                    position: point
-                    map: map
-                )
+        points = _.flatten(s.path for s in leg.steps)
+
+        markers = _.map points, (point) ->
+            new google.maps.Marker
+                position: point
+                map: map
+
+        showImagesForPoints(points)
     )
 
     google.maps.event.addListener start, 'dragend', doRoute
     google.maps.event.addListener end, 'dragend', doRoute
     doRoute()
+
+    IG.init
+        client_id: 'bab6e1f1e6c4447c8702006a0c016c5d'
+        check_status: true
+        cookie: true
+
+
+    window.IG_access_token = null
+    IG.login(
+        (response) ->
+            window.IG_access_token = response.session.access_token
+        scope: ['basic']
+    )
+
+
+window.handleIGSearch = (response) ->
+    console.log(response)
+
+
+showImagesForPoints = (points) ->
+    imagesEl = $('#images')
+    imagesEl.empty()
+
+    for point, i in points
+
+        # needs to be in a closure or else pointImagesEl will be
+        # the one created during the last iteration of the loop.
+        # TODO: understand this better.
+        closure = ->
+            pointImagesEl = $('<div>').addClass('.point-images')
+            imagesEl.append(pointImagesEl)
+
+            pointImagesEl.append($('<div>').text(point.$a + ' ' + point.ab))
+
+            # warning: if the user changes points before all callbacks
+            # are called, outstanding api calls will call the wrong
+            # callbacks
+            callbackName = 'handleIGSearch' + i
+
+            console.log(callbackName)
+            window[callbackName] = (response) ->
+                for d in response.data
+                    imURL = d.images.standard_resolution.url
+                    imURL = d.images.low_resolution.url
+                    imURL = d.images.thumbnail.url
+                    pointImagesEl.append($('<img>').attr('src', imURL))
+            $.ajax
+                url: 'https://api.instagram.com/v1/media/search'
+                data:
+                    access_token: window.IG_access_token
+                    callback: callbackName
+                    lat: point.$a
+                    lng: point.ab
+                    distance: 10
+                dataType: 'script'
+        closure()
 
 
 logLatLng = (address) ->
