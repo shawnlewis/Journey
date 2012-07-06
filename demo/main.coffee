@@ -1,6 +1,6 @@
 ##### Constants
 
-EARTH_CIRCUMFERENCE = 400751600   # meters
+EARTH_CIRCUMFERENCE = 40075160   # meters
 
 MAP_OPTIONS =
     center: new google.maps.LatLng(-34.397, 150.644)
@@ -93,13 +93,13 @@ class Instagram
             data: options
             dataType: 'script'
 
-    # Implements the same interface as the Flick class
+    # Implements the same interface as the Flickr class
     routeSearch: (points, onImage) ->
         for point in points
             instagram.search
                 lat: point.lat
                 lng: point.lng
-                distance: 10
+                distance: 100
                 onResponse: (response) ->
                     for d in response.data
                         onImage
@@ -131,8 +131,8 @@ class Flickr
     routeSearch: (points, onImage) ->
         for point in points
             flickr.search
-                bbox: boundingBox(point, 20)
-                min_taken_date: '2010-01-01'
+                bbox: boundingBox(point, 100)
+                min_taken_date: '2012-05-01'
                 extras: 'url_s,geo'
                 onResponse: (response) ->
                     for photo in response.photos.photo
