@@ -200,9 +200,12 @@ showImagesForPoints = (points) ->
     provider.routeSearch points, (photo) ->
         imagesEl.append($('<img>').attr('src', photo.thumbURL))
         loc = photo.location
-        markers.push new google.maps.Marker
+        marker = new google.maps.Marker
             position: new google.maps.LatLng(loc.lat, loc.lng)
             map: map
+        markers.push(marker)
+        google.maps.event.addListener marker, 'mouseover', =>
+            $('#current-image').attr('src', photo.thumbURL)
 
 
 # Runs on page ready
