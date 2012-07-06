@@ -44,6 +44,8 @@ googleGetRoute = (start, end, onSuccess) ->
             alert 'Route failed: ' + status
 
 googLatLng2LatLng = (ll) -> {'lat': ll.lat(), 'lng': ll.lng()}
+instagramLatLng2LatLng = (ll) -> {'lat': ll.latitude, 'lng': ll.longitude}
+flickrLatLng2LatLng = (ll) -> {'lat': ll.latitude, 'lng': ll.longitude}
 
 # Returns the name of a function that can be called once, after which it
 # will be deleted. The name is always unique.
@@ -91,6 +93,20 @@ class Instagram
             data: options
             dataType: 'script'
 
+    # Implements the same interface as the Flick class
+    routeSearch: (points, onImage) ->
+        for point in points
+            instagram.search
+                lat: point.lat
+                lng: point.lng
+                distance: 10
+                onResponse: (response) ->
+                    for d in response.data
+                        onImage
+                            thumbURL: d.images.thumbnail.url
+                            location: instagramLatLng2LatLng(d.location)
+
+
 FLICKR_ROOT_URL = 'http://api.flickr.com/services/rest/?method='
 
 class Flickr
@@ -106,14 +122,23 @@ class Flickr
         options.format = 'json'
         options.jsoncallback = oneOffFunction(callback)
 
-        # Tells flickr to return a small thumbnail url. We could construct
-        # URLs for each size from the response instead.
-        options.extras = 'url_s'
-
         $.ajax
             url: @SEARCH_URL
             data: options
             dataType: 'jsonp'
+
+    # Implements the same interface as the Instagram class
+    routeSearch: (points, onImage) ->
+        for point in points
+            flickr.search
+                bbox: boundingBox(point, 20)
+                min_taken_date: '2010-01-01'
+                extras: 'url_s,geo'
+                onResponse: (response) ->
+                    for photo in response.photos.photo
+                        onImage
+                            thumbURL: photo.url_s
+                            location: flickrLatLng2LatLng(photo)
 
 
 ##### Services
@@ -166,39 +191,19 @@ updateRoute = ->
     )
 
 showImagesForPoints = (points) ->
+    provider = instagram
+    if $('input[name=provider]:checked').val() == 'Flickr'
+        provider = flickr
+
     imagesEl = $('#images')
     imagesEl.empty()
+    provider.routeSearch points, (photo) ->
+        imagesEl.append($('<img>').attr('src', photo.thumbURL))
+        loc = photo.location
+        markers.push new google.maps.Marker
+            position: new google.maps.LatLng(loc.lat, loc.lng)
+            map: map
 
-    for point, i in points
-
-        # needs to be in a closure or else pointImagesEl will be
-        # the one created during the last iteration of the loop.
-        # TODO: understand this better.
-        closure = ->
-            pointImagesEl = $('<div>').addClass('.point-images')
-            imagesEl.append(pointImagesEl)
-
-            pointImagesEl.append($('<div>').text(point.lat + ' ' + point.lng))
-
-            if $('input[name=provider]:checked').val() == 'Instagram'
-                instagram.search
-                    lat: point.lat
-                    lng: point.lng
-                    distance: 10
-                    onResponse: (response) ->
-                        for d in response.data
-                            imURL = d.images.thumbnail.url
-                            pointImagesEl.append($('<img>').attr('src', imURL))
-            else
-                flickr.search
-                    bbox: boundingBox(point, 20)
-                    min_taken_date: '2010-01-01'
-                    onResponse: (response) ->
-                        for photo in response.photos.photo
-                            pointImagesEl.append($('<img>').attr('src', photo.url_s))
-
-
-        closure()
 
 # Runs on page ready
 $ ->
