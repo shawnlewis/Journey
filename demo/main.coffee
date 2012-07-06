@@ -20,10 +20,10 @@ metersInEarthDegrees = (meters) ->
 #  maximum_longitude, maximum_latitude."
 boundingBox = (centerLatLng, distance) ->
     dist = metersInEarthDegrees(distance)
-    return (centerLatLng.ab - dist) +
-        ',' + (centerLatLng.$a - dist) +
-        ',' + (centerLatLng.ab + dist) +
-        ',' + (centerLatLng.$a + dist)
+    return (centerLatLng.lng - dist) +
+        ',' + (centerLatLng.lat - dist) +
+        ',' + (centerLatLng.lng + dist) +
+        ',' + (centerLatLng.lat + dist)
 
 logLatLng = (address) ->
     geocoder.geocode {'address': address}, (results, status) ->
@@ -43,6 +43,7 @@ googleGetRoute = (start, end, onSuccess) ->
         else
             alert 'Route failed: ' + status
 
+googLatLng2LatLng = (ll) -> {'lat': ll.lat(), 'lng': ll.lng()}
 
 # Returns the name of a function that can be called once, after which it
 # will be deleted. The name is always unique.
@@ -158,12 +159,8 @@ updateRoute = ->
         # specify waypoints.
         leg = result.routes[0].legs[0]
 
-        points = _.flatten(s.path for s in leg.steps)
-
-        markers = _.map points, (point) ->
-            new google.maps.Marker
-                position: point
-                map: map
+        points = _.map(_.flatten(s.path for s in leg.steps),
+                       googLatLng2LatLng)
 
         showImagesForPoints(points)
     )
@@ -181,12 +178,12 @@ showImagesForPoints = (points) ->
             pointImagesEl = $('<div>').addClass('.point-images')
             imagesEl.append(pointImagesEl)
 
-            pointImagesEl.append($('<div>').text(point.$a + ' ' + point.ab))
+            pointImagesEl.append($('<div>').text(point.lat + ' ' + point.lng))
 
             if $('input[name=provider]:checked').val() == 'Instagram'
                 instagram.search
-                    lat: point.$a
-                    lng: point.ab
+                    lat: point.lat
+                    lng: point.lng
                     distance: 10
                     onResponse: (response) ->
                         for d in response.data
@@ -217,4 +214,5 @@ $ ->
     google.maps.event.addListener start, 'dragend', updateRoute
     google.maps.event.addListener end, 'dragend', updateRoute
     $('input[name=provider]').change updateRoute
+
     updateRoute()
